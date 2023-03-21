@@ -1,0 +1,149 @@
+##### A pharmaceutical company want to investigate the success rate of a new drug. 
+##### The success rate of an already established drug produced by a rival company is 82%.
+##### The company designs an experiment to investigate if the success rate of their new drug is different to 82%.
+##### A total of 52 patients receive the drug with 44 successful and 8 unsuccessful treatments recorded.
+##### Let X denote the number of successfully treated patients on the new drug and p the probability of a successful treatment on the new drug.
+##### We denote the total number of patients by n.
+
+############### Q1 ###############
+#TASK: Calculate a point estimate p for the probability of a successful treatment on the new drug. 
+
+# COMMENT: Results about whether patients had a successful treatment or not are idd. 
+# Let p be the point estimate of successful treatment, then:
+n <- 52        # Total number of patients
+s <- 44        # Number of successful treatments
+p <- s/n
+cat('The point estimate for the probability of a successful treatment 
+    on the new drug is:',p)
+
+
+############### Q2 ###############
+# TASK: Generate a large number of values (at least 1000) from a Binomial distribution with parameters n and p. 
+experiment <- rbinom(1000,n,p) 
+
+# Using the simulated random deviates identify an approximate 95% confidence interval for the true success probability of the new drug p. 
+quantiles1 <- quantile(experiment, c(0.025,0.975))
+lower_bound1 <- quantiles1[1]
+upper_bound1 <- quantiles1[2]
+
+# Interpret the interval in the context of the investigation.
+cat('We are 95% confident that the true value of success probability 
+    of the new drug (p) lies in the interval [',lower_bound1,',',upper_bound1,']')
+
+
+############### Q3 ###############
+# TASK: (a) State the appropriate Normal approximation for X (as a function of p).
+
+cat('Using Central Limit Theorem, we can approximate binomial distribution to normal
+      given that min(np,n(1-p))>5 and so the size of the sample is large enough as:
+      X ~ N(np, np(1-p))')
+
+# TASK: (b) Using your Normal approximation calculate a 95% confidence interval for p. 
+approx_mean <- n*p
+approx_var <- n*p*(1-p)
+quantiles2 <- qnorm(c(0.025,0.975),approx_mean,sqrt(approx_var))
+
+# Interpret this interval in the context of the issue being investigated.
+cat('Using Normal approximation, we are 95% confident that the true value of success probability 
+    of the new drug (p) lies in the interval [',quantiles2[1],',',quantiles2[2],']')
+
+# Compare this Normal approximation interval with the interval obtained in Question 2
+cat('Comparing two given confidence intervals, we can see that the 
+    second one is wider as it uses approximation (to normal distribution) which 
+    increases the error (so the length of the confidence interval also increases).')
+
+# TASK: (c) Comment on the validity of using a normal approximation in this instance
+
+# COMMENT: For such an approximation (CLT) to work we need min(np, n(1-p))>5. Hence, need to check it here:
+if (min(n*p,n*(1-p)>5)){
+cat('Normal approximation if valid')
+} else {
+cat('Normal approximation is not valid')
+}
+
+############### Q4 ###############
+# TASK: (a) Assume we have a population that is normally distributed with μ = 80 and (sigma)^2 = 15.
+# Simulate 100 samples each of size n = 1000 from this population and store the samples.
+
+# COMMENT: Here, we can store the data in a matrix where each row represents one sample of size 1000
+# Hence, it will be a 100 by 1000 matrix
+m_pop <- 80
+sd_pop <- 15
+samples <- matrix(rnorm(100*1000,m_pop,sd_pop), nrow=100,ncol=1000)
+
+r <- 100 # Number of rows so it is easier to use it afterwards
+c <- 1000 # Number of columns so it is easier to use it afterwards
+
+# TASK: (b) For each sample compute the sample mean, the lower and upper bound of a 95% 
+# confidence interval for μ (assuming both μ and (sigma)^2 are unknown) and store the results.
+
+# COMMENT: Knowing that each row represents one sample, we can use a built-in function
+sample_means <- rowMeans(samples)
+
+# COMMENT: we need to go through all of the rows (i.e. all all of the samples), calculate the
+# asked values for each of them, and store those in the given groups.
+# Therefore, first we meed to create empty vectors to store there the values that we find afterwards
+var_sample <- c() # Variance of each sample
+lower_bound <- c()
+upper_bound <- c()
+given_mean <- c() # Mean of each sample; just to store it as a new value as well (but it is the same as sample_means)
+
+# With unknown (sigma)^2 we are estimating standard deviations of the samples => use t-distribution 
+# 95% confidence interval and two tailed test give us alpha = 1-0.05/2 = 0.975
+t_test <- qt(0.975, 999)
+
+for (i in 1:r)  {
+  # For each sample we need to calculate the variance using the formula s^2 = (sum(x^2)-(sum(x)^2)/n)/n-1
+  var_sample_new <- (sum(samples[i,]^2) - ((sum(samples[i,]))^2)/c)/(c-1) 
+  lower_bound[i] <- sample_means[i] - ( t_test*sqrt(var_sample_new / c))
+  upper_bound[i] <- sample_means[i] + ( t_test*sqrt(var_sample_new / c))
+  given_mean[i] <- sample_means[i]
+}
+
+#Now create a matrix to store all the data
+answer_matrix <- cbind(lower_bound, upper_bound, given_mean)
+
+# TASK: (c) Count (using R commands) and comment on the number of your confidence intervals
+# that contain the true parameter value μ = 80.
+o <- 0 # Introduce the counter
+for (i in 1:100) {
+  if (lower_bound[i] <= m_pop && m_pop <= upper_bound[i]) {
+    o <- o + 1
+  }
+} 
+cat('The number of confidence intervals that contain the true parameter value μ = 80 is:', o)
+
+
+# TASK: (d) Plot your 100 confidence intervals for μ with the estimate 
+# of the sample mean marked by a dot for each sample.
+
+# COMMENT: first, we make an empty graph to work with it after
+plot(1, type = 'n', col = 'white', xlab = "ith sample", ylab = "mu", xlim = c(1,100), ylim = c(floor(min(sample_means))-2, floor(max(sample_means))+2))
+# Then we can add a horizontal line representing the true value of the mean
+abline(h = m_pop, col = "red", lwd=2) 
+# Now add confidence intervals for each of the sample colouring them depending if the sample mean is in the interval or not:
+for (i in 1:100) {
+  if (lower_bound[i] <= m_pop && m_pop <= upper_bound[i]) {
+    segments(i, col = 'darkgreen', lower_bound[i], i, upper_bound[i]) # Confidence interval
+    points(i, sample_means[i], col ='blue', pch=19) # Estimate of a sample mean
+  }
+  else {
+    segments(i, col = 'orange', lower_bound[i], i, upper_bound[i]) # Confidence interval
+    points(i, sample_means[i], col ='purple', pch=19) # Estimate of a sample mean
+  }
+}
+
+############### Q5 ###############
+# Null Hypothesis -> Ho: p' = 0.82 (where p' is a success rate of a new drug)
+# Alternative Hypothesis -> H1: p' != 0.82
+# Test Statistic -> T - number of succesful trials
+# Under the Ho: T ~ Binom(52, 0.82)
+
+
+############### Q6 ###############
+# TASK: (a) Calculate an exact p-value for the hypothesis test directly from the distribution.
+p_val_1 <- 1-pbinom(43, 52, 0.82) # The probability of observing 43 or more success
+p_value_1 <- 2*p_val_1 # As it is a two-sided test
+
+# TASK: (b) Simulate a large number of values (at least 1000) from the distribution 
+# of your test statistic assuming the null hypothesis is true.
